@@ -1,6 +1,9 @@
 # datapackage2sql
 AWS Lambda micro service to generate SQL from Frictionless Data [Tabular Data Packages](http://specs.frictionlessdata.io/tabular-data-package/).
 
+## Installation
+* Clone the repo and run `npm install`
+
 ## Usage
 Given a tablular data package (like [this one](https://github.com/datasets/gdp)), upload its `datapackage.json` file in the body of a POST request:
 	
