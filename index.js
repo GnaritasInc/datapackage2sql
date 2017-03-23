@@ -1,5 +1,9 @@
+require("buffer-v6-polyfill");
+
 const printf = require('printf');
 const Datapackage = require("datapackage").Datapackage;
+const JSZip = require('jszip');
+
 
 function sqlDataType (field) {
 	var types = {
@@ -25,7 +29,14 @@ function getColumnDefs (schema) {
 	return defs;
 }
 
+function getTableDef (resource) {
+	var output = "";
+	output += printf("create table `%s` (", resource.name);	
+	output += ("\n\t" + getColumnDefs(resource.descriptor.schema).join(",\n\t"));
+	output += ("\n);\n");
 
+	return output;
+}
 
 exports.handler = function (event, context, callback) {
 	const done = (err, res) => callback(null, {
@@ -34,25 +45,32 @@ exports.handler = function (event, context, callback) {
 	    headers: {
 	        'Content-Type': 'text/plain',
 	    },
-	});
+	});	
+	
 	var output = "";
-	try {
-		var data = JSON.parse(event.body);
-	}
-	catch (e) {
-		done(new Error("JSON parse error: "+e.message));
-		return;
-	}
-	new Datapackage(data).then(function (datapackage) {
+	
+	var zipFile = Buffer.from(event.body, 'base64');	
+
+	JSZip.loadAsync(zipFile).then(function (zip) {
+		return zip.file("datapackage.json").async("string");
+	}).then(JSON.parse).then(function (data) {			
+		return new Datapackage(data);
+	}).then(function (datapackage) {
+		console.log("Found "+datapackage.resources.length+" resources");
+			
 		datapackage.resources.forEach(function (resource) {		
-			output += printf("create table `%s` (", resource.name);	
-			output += ("\n\t" + getColumnDefs(resource.descriptor.schema).join(",\n\t"));
-			output += (");");
+			output += getTableDef(resource);		
 		});
+		
+		return output;
+
+	}).then(function (ouptut) {
 		done(null, output);
 	}).catch(function (err) {
-		done(err);
+		console.log("Error: "+err);
+		done(new Error(err));
 	});
+		
 };
 
 
