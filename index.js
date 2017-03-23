@@ -52,7 +52,11 @@ exports.handler = function (event, context, callback) {
 	var zipFile = Buffer.from(event.body, 'base64');	
 
 	JSZip.loadAsync(zipFile).then(function (zip) {
-		return zip.file("datapackage.json").async("string");
+		var descriptor = zip.file("datapackage.json");
+		if (!descriptor) {
+			throw new Error("Can't find datapackage.json at archive root.");
+		}
+		return descriptor.async("string");
 	}).then(JSON.parse).then(function (data) {			
 		return new Datapackage(data);
 	}).then(function (datapackage) {
