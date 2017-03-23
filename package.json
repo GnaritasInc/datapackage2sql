@@ -2,12 +2,12 @@
   "name": "datapackage2sql",
   "version": "1.0.0",
   "description": "AWS Lambda micro service to generate SQL from data packages.",
+
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
+  "repository":{
+    "type":"git",
+    "url":"https://github.com/GnaritasInc/datapackage2sql.git"
+  },  
   "license": "ISC",
   "dependencies": {
     "datapackage": "^0.8.1",
