@@ -4,9 +4,11 @@ const JSZip = require('jszip');
 const SqlString = require('sqlstring');
 
 
+const MAX_KEY_LEN = 255;
+
 var zipArchive = null;
 
-function sqlDataType (field) {
+function sqlDataType (field, schema) {
 	var types = {
 		"string":"text",
 		"number":"decimal",
@@ -21,14 +23,35 @@ function sqlDataType (field) {
 		return getEnumDef(field);
 	}
 
-	var type = field.type in types ? types[field.type] : "text";
-
-	if(type == "text" && field.constraints && "maxLength" in field.constraints) {
-		
-		type = printf("varchar(%d)", field.constraints.maxLength);
+	if (field.type == "string" && (isPrimaryKey(field.name, schema) || isForeignKey(field.name, schema))) {
+		return printf("varchar(%d)", MAX_KEY_LEN);
+	}
+	
+	if(field.type == "string" && field.constraints && "maxLength" in field.constraints) {		
+		return printf("varchar(%d)", field.constraints.maxLength);
 	}
 
-	return type;
+	return field.type in types ? types[field.type] : "text";
+}
+
+function inArray (elem, arr) {
+	return arr.indexOf(elem) >= 0 ? true : false;
+}
+
+function isPrimaryKey (fieldName, schema) {
+	if (!schema.primaryKey) return false;
+	var primaryKeys = getArray(schema.primaryKey);
+	return inArray(fieldName, primaryKeys);
+}
+
+function isForeignKey (fieldName, schema) {
+	if (!schema.foreignKeys) return false;
+	var fkCols = [];
+	schema.foreignKeys.forEach(function (fk) {
+		fkCols.push(fk.fields);
+	});
+
+	return inArray(fieldName, fkCols);
 }
 
 function isEnum (field) {
@@ -63,7 +86,7 @@ function getColumnDefs (schema) {
 	var defs = [];
 	schema.fields.forEach(function (field) {
 		var def = SqlString.format("?? ", field.name);
-		def += sqlDataType(field);
+		def += sqlDataType(field, schema);
 		var constraints = getFieldConstraints(field);
 		if (constraints) {
 			def += " "+constraints;
