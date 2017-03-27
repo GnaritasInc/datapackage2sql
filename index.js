@@ -1,22 +1,58 @@
 const printf = require('printf');
 const Datapackage = require("datapackage").Datapackage;
 const JSZip = require('jszip');
+const SqlString = require('sqlstring');
 
 
 var zipArchive = null;
 
 function sqlDataType (field) {
 	var types = {
-		"string":"varchar",
+		"string":"text",
 		"number":"decimal",
 		"integer":"int",
-		"boolean":"varchar",
+		"boolean":"varchar(5)",
 		"date":"date",
 		"time":"time",
 		"datetime":"datetime"
 	};
 
-	return field.type in types ? types[field.type] : "varchar";
+	if (isEnum(field)) {
+		return getEnumDef(field);
+	}
+
+	var type = field.type in types ? types[field.type] : "text";
+
+	if(type == "text" && field.constraints && "maxLength" in field.constraints) {
+		
+		type = printf("varchar(%d)", field.constraints.maxLength);
+	}
+
+	return type;
+}
+
+function isEnum (field) {
+	return (field.constraints && field.constraints.enum && field.constraints.enum.length) ? true : false;
+}
+
+function getEnumDef (field) {	
+	var format = "enum ("+ (new Array(field.constraints.enum.length)).fill("?").join(", ") +")";
+	return SqlString.format(format, field.constraints.enum);
+}
+
+function getFieldConstraints (field) {
+	var constraints = [];
+	if (!field.constraints) {
+		return "";
+	}
+	if (field.constraints.required) {
+		constraints.push("not null");
+	}
+	if (field.constraints.unique) {
+		constraints.push("unique");
+	}
+
+	return constraints.join(" ");
 }
 
 function getArray (val) {
@@ -26,21 +62,25 @@ function getArray (val) {
 function getColumnDefs (schema) {
 	var defs = [];
 	schema.fields.forEach(function (field) {
-		var def = printf("`%s` %s", field.name, sqlDataType(field));
+		var def = SqlString.format("?? ", field.name);
+		def += sqlDataType(field);
+		var constraints = getFieldConstraints(field);
+		if (constraints) {
+			def += " "+constraints;
+		}
 		defs.push(def);
 	});
 
 	if (schema.primaryKey) {
 		var cols = getArray(schema.primaryKey);
-		var format = (new Array(cols.length)).fill("`%s`").join(", ");
-		var args = [format].concat(cols);
-		defs.push("primary key ("+printf.apply({}, args)+")");
+		var format = (new Array(cols.length)).fill("??").join(", ");		
+		defs.push("primary key ("+ SqlString.format(format, cols) +")");
 	}
 
 	if (schema.foreignKeys) {
 		schema.foreignKeys.forEach(function (fk) {
-			var def = printf("foreign key (`%s`)", fk.fields);
-			def += printf("references `%s` (`%s`)", fk.reference.resource, fk.reference.fields);
+			var def = SqlString.format("foreign key (??)", fk.fields);
+			def += SqlString.format(" references ?? (??)", [fk.reference.resource, fk.reference.fields]);
 			defs.push(def);
 		});
 	}
@@ -50,7 +90,7 @@ function getColumnDefs (schema) {
 
 function getTableDef (resource) {
 	var output = "";
-	output += printf("create table `%s` (", resource.name);	
+	output += SqlString.format("create table ?? (", resource.name);	
 	output += "\n\t" + getColumnDefs(resource.descriptor.schema).join(",\n\t");
 	output += "\n);\n";
 
