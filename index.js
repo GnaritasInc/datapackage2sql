@@ -154,11 +154,12 @@ function parseBase64 (str) {
 	});	
 }
 
-function parseBody (body) {
+function parseBody (bodyStr) {
 	zipArchive = null; // DS: This seems to hang around between invocations on AWS
 	
 	return new Promise(function (resolve, reject) {
 		try {			
+			var body = JSON.parse(bodyStr);
 			if (body.descriptor) {				
 				resolve(body.descriptor);
 			}
