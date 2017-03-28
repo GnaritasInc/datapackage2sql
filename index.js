@@ -23,7 +23,7 @@ function sqlDataType (field, schema) {
 		return getEnumDef(field);
 	}
 
-	if (field.type == "string" && (isPrimaryKey(field.name, schema) || isForeignKey(field.name, schema))) {
+	if (field.type == "string" && isKeyColumn(field, schema)) {
 		return printf("varchar(%d)", MAX_KEY_LEN);
 	}
 	
@@ -38,14 +38,24 @@ function inArray (elem, arr) {
 	return arr.indexOf(elem) >= 0 ? true : false;
 }
 
-function isPrimaryKey (fieldName, schema) {
+function isKeyColumn (field, schema) {
+	return isPrimaryKey(field, schema) || isForeignKey(field, schema) || isUniqueKey(field);
+}
+
+function isUniqueKey (field) {
+	return field.constraints && field.constraints.unique;
+}
+
+function isPrimaryKey (field, schema) {
 	if (!schema.primaryKey) return false;
+	var fieldName = field.name;
 	var primaryKeys = getArray(schema.primaryKey);
 	return inArray(fieldName, primaryKeys);
 }
 
-function isForeignKey (fieldName, schema) {
+function isForeignKey (field, schema) {
 	if (!schema.foreignKeys) return false;
+	var fieldName = field.name;
 	var fkCols = [];
 	schema.foreignKeys.forEach(function (fk) {
 		fkCols.push(fk.fields);
