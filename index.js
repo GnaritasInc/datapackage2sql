@@ -146,8 +146,7 @@ function parseBase64 (str) {
 				}
 				catch(err) {
 					console.log("Can't parse base 64!");
-					reject("Base 64 parse failure: "+err.message);
-					return;
+					reject("Base 64 parse failure: "+err.message);					
 				}
 			}	
 			console.log("Parsed base64 body");
@@ -157,16 +156,24 @@ function parseBase64 (str) {
 
 function parseBody (body) {
 	zipArchive = null; // DS: This seems to hang around between invocations on AWS
-	try {
-		var data = JSON.parse(body);
-		console.log("Parsed JSON body");
-		return new Promise(function (resolve, reject) {
-			resolve(data);
-		});
-	}
-	catch (e) {
-		return parseBase64Body(body);
-	}
+	
+	return new Promise(function (resolve, reject) {
+		try {			
+			if (body.descriptor) {				
+				resolve(body.descriptor);
+			}
+			else if (body.datapackage) {
+				resolve(parseBase64Body(body.datapackage));
+			}
+			else {
+				throw "Request body must include either a JSON descriptor in 'descriptor' or a base 64 encoded datapackage ZIP archive in 'datapackage'.";
+			}
+		}
+		catch (err) {
+			reject(err);
+		}	
+	});
+	
 }
 
 function parseBase64Body (body) {
@@ -216,6 +223,7 @@ exports.handler = function (event, context, callback) {
 	}).then(
 		output => done(null, output)
 	).catch(		
+		
 		err => done(new Error(err))
 	);		
 };
