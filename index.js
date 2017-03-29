@@ -69,8 +69,7 @@ function isEnum (field) {
 }
 
 function getEnumDef (field) {	
-	var format = "enum ("+ getFormatString("?", field.constraints.enum.length) +")";
-	return SqlString.format(format, field.constraints.enum);
+	return " enum("+ quoteArray(field.constraints.enum) +")";	
 }
 
 function getFieldConstraints (field) {
@@ -97,6 +96,17 @@ function getFormatString (format, length, delimiter) {
 	return (new Array(length)).fill(format).join(delimiter);
 }
 
+function quoteNames (cols) {
+	cols = Array.isArray(cols) ? cols : [cols];
+	var format = getFormatString("??", cols.length);
+	return SqlString.format(format, cols);
+}
+
+function quoteArray (arr) {
+	var format = getFormatString("?", arr.length);
+	return SqlString.format(format, arr);
+}
+
 function getColumnDefs (schema) {
 	var defs = [];
 	schema.fields.forEach(function (field) {
@@ -110,15 +120,16 @@ function getColumnDefs (schema) {
 	});
 
 	if (schema.primaryKey) {
-		var cols = getArray(schema.primaryKey);
-		var format = getFormatString("??", cols.length); 	
-		defs.push("primary key ("+ SqlString.format(format, cols) +")");
+		var cols = getArray(schema.primaryKey);			
+		defs.push("primary key ("+ quoteNames(cols) +")");
 	}
 
 	if (schema.foreignKeys) {
 		schema.foreignKeys.forEach(function (fk) {
-			var def = SqlString.format("foreign key (??)", fk.fields);
-			def += SqlString.format(" references ?? (??)", [fk.reference.resource, fk.reference.fields]);
+			var fkCols = getArray(fk.fields);
+			var def = "foreign key("+ quoteNames(fkCols) +")";			
+			def += SqlString.format(" references ?? ", fk.reference.resource);
+			def += "(" + quoteNames(getArray(fk.reference.fields)) + ")";
 			defs.push(def);
 		});
 	}
