@@ -7,6 +7,7 @@ const SqlString = require('sqlstring');
 const MAX_KEY_LEN = 255;
 
 var zipArchive = null;
+var request = {};
 
 function sqlDataType (field, schema) {
 	var types = {
@@ -128,8 +129,8 @@ function getColumnDefs (schema) {
 		schema.foreignKeys.forEach(function (fk) {
 			var fkCols = getArray(fk.fields);
 			var def = "foreign key("+ quoteNames(fkCols) +")";			
-			def += SqlString.format(" references ?? ", fk.reference.resource);
-			def += "(" + quoteNames(getArray(fk.reference.fields)) + ")";
+			def += " references " + getTableRef(fk.reference.resource);
+			def += " (" + quoteNames(getArray(fk.reference.fields)) + ")";
 			defs.push(def);
 		});
 	}
@@ -139,11 +140,16 @@ function getColumnDefs (schema) {
 
 function getTableDef (resource) {
 	var output = "";
-	output += SqlString.format("create table ?? (", resource.name);	
+	output += "create table "+ getTableRef(resource.name) +" (";
 	output += "\n\t" + getColumnDefs(resource.descriptor.schema).join(",\n\t");
 	output += "\n);\n";
 
 	return output;
+}
+
+function getTableRef (name) {
+	var prefix = ("tablePrefix" in request) ? request.tablePrefix : "";
+	return quoteNames(prefix+name); 
 }
 
 function oldParseBase64 (str) {
@@ -172,7 +178,7 @@ function parseBase64 (str) {
 
 function parseBody (bodyStr) {
 	zipArchive = null; // DS: This seems to hang around between invocations on AWS
-	
+	request = {};
 	return new Promise(function (resolve, reject) {
 		try {			
 			var body = JSON.parse(bodyStr);
@@ -185,6 +191,7 @@ function parseBody (bodyStr) {
 			else {
 				throw "Request body must include either a JSON descriptor in 'descriptor' or a base 64 encoded datapackage ZIP archive in 'datapackage'.";
 			}
+			request = body;
 		}
 		catch (err) {
 			reject(err);
