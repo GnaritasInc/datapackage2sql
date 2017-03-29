@@ -69,7 +69,7 @@ function isEnum (field) {
 }
 
 function getEnumDef (field) {	
-	var format = "enum ("+ (new Array(field.constraints.enum.length)).fill("?").join(", ") +")";
+	var format = "enum ("+ getFormatString("?", field.constraints.enum.length) +")";
 	return SqlString.format(format, field.constraints.enum);
 }
 
@@ -92,6 +92,11 @@ function getArray (val) {
 	return Array.isArray(val) ? val : [val];
 }
 
+function getFormatString (format, length, delimiter) {
+	delimiter = delimiter || ", ";
+	return (new Array(length)).fill(format).join(delimiter);
+}
+
 function getColumnDefs (schema) {
 	var defs = [];
 	schema.fields.forEach(function (field) {
@@ -106,7 +111,7 @@ function getColumnDefs (schema) {
 
 	if (schema.primaryKey) {
 		var cols = getArray(schema.primaryKey);
-		var format = (new Array(cols.length)).fill("??").join(", ");		
+		var format = getFormatString("??", cols.length); 	
 		defs.push("primary key ("+ SqlString.format(format, cols) +")");
 	}
 
