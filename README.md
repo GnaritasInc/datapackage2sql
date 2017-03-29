@@ -5,17 +5,45 @@ AWS Lambda micro service to generate SQL from Frictionless Data [Tabular Data Pa
 * Clone the repo and run `npm install`
 
 ## Usage
-Given a tablular data package (like [this one](https://github.com/datasets/gdp)), upload its `datapackage.json` file in the body of a POST request:
-	
-	curl --data @path/to/datapackage.json https://6goo1zkzoi.execute-api.us-east-1.amazonaws.com/prod/datapackage2sql
+The service accepts http POST requests with a JSON payload. The JSON can include either the contents of the data package's `datapackage.json` descriptor file in the `descriptor` property, or a ZIP archive containing the descriptor plus CSV data as a base64 encoded string in the `datapackage` property, plus an optional `tablePrefix` property:
 
-You'll get SQL output to generate the data stuctures it defines:
+### With JSON descriptor:
 
-	create table `gdp` (
-        `Country Name` varchar,
-        `Country Code` varchar,
-        `Year` date,
-        `Value` decimal);
+	{
+		"tablePrefix":"gn_",
+		"descriptor": {
+		  "name": "gdp",
+		  "title": "Country, Regional and World GDP (Gross Domestic Product)",		  
+		  "resources": [
+		    {
+		      "name": "gdp",
+		      "path": "data/gdp.csv",
+		      "schema": {
+		        "fields": [
+		          {
+		            "name": "Country Name",
+		            "type": "string"
+		          },
+		          
+		         (etc.)
+		}
+	}
+
+
+### With ZIP archive:
+
+	{
+		"tablePrefix":"gn_",
+		"datapackage":"UEsDBBQAAAAI ...(base64 encoded binary data)... yqQ8hm1xp"
+	}
+
+When using the ZIP archive option, the `datapackage.json` file should be at the archive root.
+
+The output will be SQL statements to create the tables described in the descriptor. Each `resource` object in the descriptor becomes a table with the name in its `name` property, prefixed with the string sepcified in the `tablePrefix` property, if present.
+
+### Example:
+
+	curl --data @path/to/json/file.json https://xxxx.execute-api.us-east-1.amazonaws.com/prod/datapackage2sql
 
 ## TODO
-* Modify to optionally accept a ZIP archive of the descriptor plus data and generate SQL to populate the database too.
+* Include insert statements to populate tables parsed out of ZIP archive data.
